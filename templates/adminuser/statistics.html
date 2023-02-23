@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}
+    注册
+{% endblock %}
+{% block content %}
+    <script>
+        function get_not_clockin_rank() {
+            var inputValue = []
+            $.getJSON("not_clockin_rank", function (rank) {
+                console.log(rank)
+                rank.data.sort((a, b) => {
+                    return b.cnt - a.cnt
+                })
+                var cnt = 0
+                var realname, stunum, email, phone
+                $('#rank').children().remove()
+                $.each(rank.data, function (k, v) {
+                    cnt++
+                    console.log(v)
+                    console.log(v['user']['user_name'])
+                    if(v['user']['realname'] != null){
+                        realname = v['user']['realname']
+                    }else {
+                        realname = '暂无绑定'
+                    }
+                    if(v['user']['user_bind_num'] != null){
+                        stunum = v['user']['user_bind_num']
+                    }else {
+                        stunum = '暂无绑定'
+                    }
+                    if(v['user']['email'] != null){
+                        email = v['user']['email']
+                    }else {
+                        email = '暂无绑定'
+                    }
+                    if(v['user']['phone'] != null){
+                        phone = v['user']['phone']
+                    }else {
+                        phone = '暂无绑定'
+                    }
+                    $('#rank').append('<tr>'+
+                        '<th scope="row">'+cnt+'</th>'+
+                        '<td>'+realname+'</td>'+
+                        '<td>'+stunum+'</td>'+
+                        '<td>'+email+'</td>'+
+                        '<td>'+phone+'</td>'+
+                        '<td>'+v['cnt']+'</td>'+
+                    '</tr>')
+                })
+            })
+        }
+    </script>
+    <div class="container">
+        <nav>
+            <div class="nav nav-tabs border-0" id="nav-tab" role="tablist" style="position: relative;left: 32%">
+                <button class="nav-link active" id="nav-home-tab" data-bs-toggle="tab" data-bs-target="#nav-home"
+                        type="button" role="tab" aria-controls="nav-home" aria-selected="true" style="color: black">
+                    日打卡情况
+                </button>
+                <button class="nav-link" id="nav-profile-tab" data-bs-toggle="tab" data-bs-target="#nav-profile"
+                        type="button" role="tab" aria-controls="nav-profile" aria-selected="false"
+                        style="color: black">周打卡情况
+                </button>
+                <button class="nav-link" id="nav-contact-tab" data-bs-toggle="tab" data-bs-target="#nav-contact"
+                        type="button" role="tab" aria-controls="nav-contact" aria-selected="false"
+                        style="color: black">月打卡情况
+                </button>
+                <button class="nav-link" id="nav-contact-tab" data-bs-toggle="tab" data-bs-target="#nav-rank"
+                        type="button" role="tab" aria-controls="nav-contact" aria-selected="false"
+                        onclick="get_not_clockin_rank()"
+                        style="color: black">打卡被提醒排行
+                </button>
+            </div>
+        </nav>
+        <div class="tab-content" id="nav-tabContent">
+            <div class="tab-pane fade show active" id="nav-home" role="tabpanel" aria-labelledby="nav-home-tab"
+                 style="position: relative;left: 16%">
+                <iframe frameborder="0" src="{% url 'adminuser:statistics' %}?type=day" width="100%"
+                        height="700"></iframe>
+            </div>
+            <div class="tab-pane fade" id="nav-profile" role="tabpanel" aria-labelledby="nav-profile-tab"
+                 style="position: relative;left: 16%">
+                <iframe frameborder="0" src="{% url 'adminuser:statistics' %}?type=week" width="100%"
+                        height="700"></iframe>
+            </div>
+            <div class="tab-pane fade" id="nav-contact" role="tabpanel" aria-labelledby="nav-contact-tab"
+                 style="position: relative;left: 16%">
+                <iframe frameborder="0" src="{% url 'adminuser:statistics' %}?type=month" width="100%"
+                        height="700"></iframe>
+            </div>
+            <div class="tab-pane fade" id="nav-rank" role="tabpanel" aria-labelledby="nav-contact-tab"
+                 style="position: relative;">
+                <br/>
+                <a href="{% url 'adminuser:export_excel' %}" class="link-success">导出Excel</a>
+                <table class="table table-striped table-hover">
+                    <thead>
+                    <tr>
+                        <th scope="col">排行</th>
+                        <th scope="col">姓名</th>
+                        <th scope="col">学号</th>
+                        <th scope="col">邮箱</th>
+                        <th scope="col">手机</th>
+                        <th scope="col">本月未打卡次数</th>
+                    </tr>
+                    </thead>
+                    <tbody id="rank">
+
+                    </tbody>
+                </table>
+
+            </div>
+        </div>
+    </div>
+{% endblock %}

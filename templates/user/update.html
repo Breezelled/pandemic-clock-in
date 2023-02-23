@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}
+    更新个人资料
+{% endblock %}
+{% block content %}
+
+    <link href="{% static 'css/IntelliSense.css' %}" type="text/css" rel="stylesheet"/>
+    <link href="{% static 'css/cropper.min.css' %}" type="text/css" rel="stylesheet"/>
+    <script src="{% static 'js/IntelliSense.js' %}"></script>
+    <script src="{% static 'js/cropper.min.js' %}"></script>
+    {# 单位/学校智能输入提示 #}
+    <script>
+        $(document).ready(function () {
+            //$('#user_org').val(api);
+            createApi();
+        });
+
+        var autoComplete;
+
+        function createApi() {
+            var inputValue = []
+            $.getJSON("get_all_org", function (org) {
+                $.each(org, function (k, v) {
+                    inputValue.push(v['fields']['org_name'])
+                })
+            })
+
+            if (!autoComplete) {
+                autoComplete = new AutoComplete('user_org', 'auto', inputValue);//第一个参数是输入框id，第二个是下拉显示的id，第三个是获取的全部数据。
+            }
+            $('#user_org').blur(function () {//点击下拉选项得到获取值
+                //alert($('#user_org').val());点击获取选择的值。
+            });
+        }
+    </script>
+    <div class="container">
+        <div class="row card border-0" style="background: transparent">
+            <div class="col-4 card-body m-auto">
+                <br/>
+
+                <form method="post"
+                        {% if user.is_superuser == 0 %}
+                      action="{% url 'login:user_update' %}"
+                        {% else %}
+                      action="{% url 'adminuser:update' %}"
+                        {% endif %}
+                      enctype="multipart/form-data">
+                    {% csrf_token %}
+                    {% if user.profile_photo %}
+                        <div class="text-center">
+                            <img src="{{ user.profile_photo.url }}"
+                                 class="rounded">
+                        </div>
+                    {% else %}
+                        <h5 class="col-md-4">暂无头像</h5>
+                    {% endif %}
+                    <br/><br/>
+                    <div class="mb-3">
+                        <input type="file" class="form-control" aria-label="file example" name="profile_photo"
+                               id="profile_photo">
+                    </div>
+
+                    <br/><br/>
+                    <div class="form-floating mb-3">
+                        <input type="text" class="form-control" id="user_name" name="user_name" placeholder="用户名"
+                               {% if user.user_name is not None %}value="{{ user.user_name }}"{% endif %}>
+                        <label for="user_name">用户名</label>
+                    </div>
+                    <div class="form-floating mb-3">
+                        <input type="text" class="form-control" id="realname" name="realname" placeholder="用户名"
+                               {% if user.realname is not None %}value="{{ user.realname }}"{% endif %}>
+                        <label for="user_name">真实姓名</label>
+                    </div>
+                    <div class="form-floating mb-3">
+                        <input type="text" class="form-control" id="user_org" name="user_org" autocomplete="off"
+                               placeholder="所属单位/学校"
+                               onkeyup="autoComplete.start(event)" {% if user.user_org is not None %}
+                               value="{{ user.user_org }}"{% endif %}>
+                        <label for="user_org">所属单位/学校</label>
+                        <div class="auto_hidden" style="height: auto;" id="auto">
+                        </div>
+
+                    </div>
+                    <div class="form-floating mb-3">
+                        <input type="text" class="form-control" id="phone" name="phone" placeholder="手机号"
+                                {% if user.phone is not None %}
+                               value="{{ user.phone }}"{% endif %}>
+                        <label for="phone">手机号</label>
+                    </div>
+                    <div class="form-floating mb-3">
+
+                        <input type="email" class="form-control" id="email" name="email" placeholder="邮箱"
+                                {% if user.email is not None %}
+                               value="{{ user.email }}"{% endif %}>
+                        <label for="email">邮箱</label>
+                    </div>
+                    <div class="form-floating mb-3">
+                        <input type="text" class="form-control" id="user_bind_num" name="user_bind_num"
+                               placeholder="工号/学号"
+                                {% if user.user_bind_num is not None %} value="{{ user.user_bind_num }}"{% endif %}>
+                        <label for="user_bind_num">工号/学号</label>
+                    </div>
+                    <div class="form-group text-center">
+                        <label for="gender">性别</label>
+                        女<input type="radio" class="radio" id="gender" name="gender" value="0"
+                                {% if user.gender == 0 %}checked="checked"{% endif %}>
+                        男<input type="radio" class="radio" id="gender" name="gender" value="1"
+                                {% if user.gender == 1 %}checked="checked"{% endif %}>
+                        不想透露<input type="radio" class="radio" id="gender" name="gender" value="2"
+                                   {% if user.gender == 2 %}checked="checked"{% endif %}>
+                    </div>
+                    {% if request.session.admin_level > 1 %}
+                        <div class="form-floating mb-3">
+                            <input type="time" class="form-control" id="strategy_time" name="strategy_time" placeholder="00:00"
+                                    {% if request.session.strategy_time != '' %}
+                                   value="{{ request.session.strategy_time }}"{% endif %}>
+                            <label for="strategy_time">提醒打卡时间</label>
+                        </div>
+                    {% endif %}
+                    <br/>
+                    <div style="text-align: center">
+                        <button type="submit" class="btn btn-success">更新个人资料</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+{% endblock content %}
+

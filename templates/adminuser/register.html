@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}
+    注册
+{% endblock %}
+{% block content %}
+
+    <link href="{% static 'css/IntelliSense.css' %}" type="text/css" rel="stylesheet"/>
+    <link href="{% static 'css/cropper.min.css' %}" type="text/css" rel="stylesheet"/>
+    <script src="{% static 'js/IntelliSense.js' %}"></script>
+    <script src="{% static 'js/cropper.min.js' %}"></script>
+    {# 单位/学校智能输入提示 #}
+    <script>
+        $(document).ready(function () {
+            //$('#user_org').val(api);
+            createApi();
+        });
+
+        var autoComplete;
+
+        function createApi() {
+            var inputValue = []
+            $.getJSON("{% url 'login:get_all_org' %}", function (org) {
+                $.each(org, function (k, v) {
+                    inputValue.push(v['fields']['org_name'])
+                })
+            })
+            console.log(inputValue)
+
+            if (!autoComplete) {
+                autoComplete = new AutoComplete('user_org', 'auto', inputValue);//第一个参数是输入框id，第二个是下拉显示的id，第三个是获取的全部数据。
+            }
+            $('#user_org').blur(function () {//点击下拉选项得到获取值
+                //alert($('#user_org').val());点击获取选择的值。
+            });
+        }
+    </script>
+    <script>
+        //判断是否重复邮箱
+        function isHaveEmail() {
+            $.ajax({
+                url: '{% url 'login:is_have_email' %}',
+                type: 'POST',
+                data: {'email': $('#email').val()},
+                dataType: 'json',
+                success: function (msg) {
+                    json = eval(msg)
+                    if (json.result == "False") {
+                        $('#email').addClass('is-invalid')
+                    } else {
+                        $('#email').removeClass('is-invalid')
+                    }
+                }
+            })
+        }
+
+        function checkPWD() {
+            $.ajax({
+                url: '{% url 'login:check_pwd' %}',
+                type: 'POST',
+                data: {'pwd1': $('#password').val(), 'pwd2': $('#password2').val()},
+                dataType: 'json',
+                success: function (msg) {
+                    json = eval(msg)
+                    if (json.result == "False") {
+                        $('#password').addClass('is-invalid')
+                        $('#password2').addClass('is-invalid')
+                    } else {
+                        $('#password').removeClass('is-invalid')
+                        $('#password2').removeClass('is-invalid')
+                    }
+                }
+            })
+        }
+    </script>
+    <div class="container">
+        <div class="row card border-light" style="background: transparent">
+            <div class="col-4 card-body m-auto">
+                <br/>
+                <form method="post" action="{% url 'adminuser:register' %}">
+                    {% csrf_token %}
+                    <div class="form-floating mb-3">
+                        <input type="text" class="form-control" id="user_name" name="user_name" placeholder="用户名"
+                               required>
+                        <label for="user_name">用户名</label>
+                    </div>
+                    <div class="form-floating mb-3">
+                        <input type="email" class="form-control" id="email" name="email" placeholder="name@example.com"
+                               aria-describedby="emailFeedback" required onkeyup="isHaveEmail()">
+                        <label for="email" id="email_label">邮箱</label>
+                        <div id="emailFeedback" class="invalid-feedback">
+                            该邮箱已被注册
+                        </div>
+                    </div>
+                    <div class="form-floating mb-3">
+                        <input type="text" class="form-control" id="user_org" name="user_org" autocomplete="off" placeholder="单位/学校"
+                               onkeyup="autoComplete.start(event)">
+                        <label for="user_org">单位/学校</label>
+                        <div class="auto_hidden" style="height: auto;" id="auto">
+                    </div>
+                    </div>
+                    <div class="form-floating mb-3">
+                        <input type="password" class="form-control" id="password" name="password" placeholder="密码"
+                               required>
+                        <label for="password" id="password_label">密码</label>
+                    </div>
+                    <div class="form-floating mb-3">
+                        <input type="password" class="form-control" id="password2" name="password2" placeholder="确认密码"
+                               aria-describedby="pwdFeedback" required onkeyup="checkPWD()">
+                        <label for="password2" id="password2_label">确认密码</label>
+                        <div id="pwdFeedback" class="invalid-feedback">
+                            两次输入的密码不同
+                        </div>
+                    </div>
+                    <br/>
+                    <div style="text-align: center">
+                        {#                    {% if user.is_superuser == 1 %}#}
+                        <button type="submit" class="btn btn-success">新增管理员</button>
+                        {#                    {% endif %}#}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+{% endblock content %}
+

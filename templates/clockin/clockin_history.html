@@ -1,0 +1,415 @@
+{% extends "base.html" %}
+{% load static %}
+{% load filter %}
+{% block title %}
+    健康打卡历史记录
+{% endblock %}
+{% block content %}
+
+
+    {#  高德地图api脚本key和密钥配置  #}
+    <script type="text/javascript">
+        window._AMapSecurityConfig = {
+            securityJsCode: '27a51dc9a4c261a30938d7bd45775d82',
+        }
+    </script>
+    <script type="text/javascript"
+            src="https://webapi.amap.com/maps?v=2.0&key=b8164eb81af008be25a8b966f99cc84c"></script>
+    <script>
+        function showSelection(type, code) {
+            url = "get_selection_data/" + type + "/" + code
+            $.getJSON(url, function (data) {
+                var ele = '#' + type
+                var str = "请选择" + (type === "province" ? "省" : type === 'city' ? "市" : "县")
+                if (type == 'province') {
+                    $('#city').attr('style', 'display: none')
+                    $('#area').attr('style', 'display: none')
+                } else if (type == 'city') {
+                    $('#area').attr('style', 'display: none')
+                }
+                $(ele).children().remove()
+                $(ele).append('<option value="">' + str + '</option>')
+                $(ele).attr('style', 'display: display')
+                data.data.forEach((item) => {
+                    $(ele).append('<option value=' + item.code + '>' + item.name + '</option>')
+                })
+                $('#province').attr('required', 'true')
+                $('#city').attr('required', 'true')
+                $('#area').attr('required', 'true')
+            })
+        }
+
+        $(document).ready(function () {
+            $('#province').bind('change', function () {
+                var res = $(this).val();
+                $('#area').children().remove()
+                $('#area').append('<option value="">' + '请选择县' + '</option>')
+                showSelection("city", res)
+            })
+            $('#city').bind('change', function () {
+                var res = $(this).val();
+                showSelection("area", res)
+
+            })
+            $('#area').bind('change', function () {
+                var a = $('#area option:selected').val()
+                $('#address').val(a)
+                $('#modify').val(1)
+            })
+        })
+
+        // 获取地理位置信息
+        function getLocation() {
+            navigator.geolocation.getCurrentPosition(position => {
+            })
+            var options = {
+                //高精度和应用程序缓存时间
+                enableHighAccuracy: true,
+                maximumAge: 1000
+            };
+            if (navigator.geolocation) {
+                // 走到这里说明，浏览器支持geolocation
+                navigator.geolocation.getCurrentPosition(onSuccess, onError, options);
+            } else {
+                // 否则浏览器不支持geolocation
+                alert('您的浏览器不支持地理位置定位！');
+            }
+        }
+
+        // 成功时的回调函数
+        // 第一步获取定位成功返回的经纬度数据，然后结合百度那边提供的接口进行具体位置的转换，最后还有一个数据提交的方法，要跟自己的业务操作了
+        function onSuccess(position) {
+            console.log(position)
+            // 返回用户位置
+            // 经度
+            var longitude = position.coords.longitude;
+            // 纬度
+            var latitude = position.coords.latitude;
+
+
+            AMap.plugin('AMap.Geolocation', function () {
+                var geolocation = new AMap.Geolocation({
+                    // 是否使用高精度定位，默认：true
+                    enableHighAccuracy: true,
+                    // 设置定位超时时间，默认：无穷大
+                    timeout: 10000,
+                })
+
+                AMap.plugin('AMap.Geocoder', function () {
+                    var geocoder = new AMap.Geocoder({
+                        // city 指定进行编码查询的城市，支持传入城市名、adcode 和 citycode
+                        city: '010'
+                    })
+
+                    var lnglat = [longitude, latitude]
+                    AMap.convertFrom(lnglat, 'gps', function (status, result) {
+                        if (result.info === 'ok') {
+                            lnglat = result.locations; // Array.<LngLat>
+                        }
+                    });
+                    geocoder.getAddress(lnglat, function (status, result) {
+                        if (status === 'complete' && result.info === 'OK') {
+                            // result为对应的地理位置详细信息
+                            $('#location').children().remove()
+                            $('#location').append('<span style="text-align: center">' + result.regeocode.formattedAddress + '</span><br/>')
+                            $('#error').children().remove()
+                            $('#error').append('<button type="button" class="btn" style="background-color: #8fd19e; -webkit-text-fill-color: white" onclick="getLocation()">获取位置</button>')
+                            $('#error').append("<span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><button type='button' class='btn btn-danger' onclick=\"showSelection('province', 0)\">定位有误?</button>")
+                            $('#address').val(result.regeocode.formattedAddress)
+                        }
+                    })
+                })
+            })
+        }
+
+        // 失败时的回调函数
+        function onError(error) {
+            switch (error.code) {
+                case 1:
+                    alert("位置服务被拒绝！");
+                    break;
+                case 2:
+                    alert("暂时获取不到位置信息！");
+                    break;
+                case 3:
+                    alert("获取信息超时！");
+                    break;
+                case 4:
+                    alert("未知错误！");
+                    break;
+            }
+        }
+    </script>
+
+
+    <div class="container">
+        {% if not record_list %}
+            <div class="alert alert-warning text-center" role="alert">
+                暂无打卡历史记录&nbsp;&nbsp;<a href="{% url 'clockin:daily_clockin' %}" class="alert-link">点我去打卡</a>
+            </div>
+        {% endif %}
+        {% for record in records %}
+            <div class="card text-center">
+                <div class="card-header alert-success">
+                    {{ user.user_org }}健康信息每日打卡
+                </div>
+                <div class="card-body">
+                    <p class="card-text">填写人：{{ user.user_name }}</p>
+                    <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#exampleModal">
+                        查看详情
+                    </button>
+                    <div class="modal fade" id="exampleModal" tabindex="-1" aria-labelledby="exampleModalLabel"
+                         aria-hidden="true">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="exampleModalLabel">{{ user.user_org }}健康信息每日打卡</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                            aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <ol class="list-group list-group-numbered">
+                                        <form method="post"
+                                              action="{% url 'clockin:daily_clockin' %}">
+                                            {% csrf_token %}
+                                            <li class="list-group-item justify-content-between align-items-start">
+                                                <div style="display: inline-flex">
+                                                    <span class="badge rounded-pill"
+                                                          style="background-color: #8fd19e">1</span>
+                                                    <div class="ms-2 me-auto">
+                                                        <div class="fw-bold">你当前所在位置</div>
+                                                    </div>
+                                                </div>
+                                                <div class="form-group">
+                                                    <label for="address">你当前所在位置</label>
+                                                    <div style="text-align: center"><br/>
+                                                        <div class="card-text alert-success"
+                                                             style="margin: 0 auto; width: max-content"
+                                                             id="location"><span>{{ record.address }}</span></div>
+                                                        <input type="text" hidden id="modify" name="modify" value="0">
+                                                        <input type="text" hidden id="address" name="address"
+                                                               required><br/>
+                                                        <select name="province" id="province" style="display: none">
+                                                            <option value="">请选择省</option>
+                                                        </select>
+                                                        <select name="city" id="city" style="display: none">
+                                                            <option value="">请选择市</option>
+                                                        </select>
+                                                        <select name="area" id="area" style="display: none">
+                                                            <option value="">请选择县</option>
+                                                        </select>
+                                                        <br/><br/>
+                                                        <div id="error">
+                                                            <button type="button" class="btn"
+                                                                    style="background-color: #8fd19e; -webkit-text-fill-color: white"
+                                                                    onclick="getLocation()">获取位置
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </li>
+                                            <li class="list-group-item d-flex justify-content-between align-items-start">
+                                                <span class="badge rounded-pill"
+                                                      style="background-color: #8fd19e">2</span>
+                                                <div class="ms-2 me-auto">
+                                                    <div class="fw-bold">你目前是否有发热？（≥37.3度）</div>
+                                                    是<input type="radio" class="radio" id="ill1" name="ill" value="1"
+                                                            required>
+                                                    否<input type="radio" class="radio" id="ill0" name="ill" value="0"
+                                                            required>
+                                                </div>
+                                            </li>
+                                            <div id="q3">
+                                                <li class="list-group-item d-flex justify-content-between align-items-start">
+                                                    <span class="badge rounded-pill"
+                                                          style="background-color: #8fd19e">3</span>
+                                                    <div class="ms-2 me-auto">
+                                                        <div class="fw-bold">发热体温多少？</div>
+                                                        <input type="number" min="0.00" step="0.01" id="temperature"
+                                                               name="temperature">℃
+                                                    </div>
+                                                </li>
+                                            </div>
+                                            <div id="q4">
+                                                <li class="list-group-item d-flex justify-content-between align-items-start">
+                                                    <span class="badge rounded-pill"
+                                                          style="background-color: #8fd19e">4</span>
+                                                    <div class="ms-2 me-auto">
+                                                        <div class="fw-bold">你是否有咳嗽、结膜充血、呼吸困难等疑似症状？</div>
+                                                        是<input type="radio" class="radio" id="symptom1" name="symptom"
+                                                                value="1" required>
+                                                        否<input type="radio" class="radio" id="symptom0" name="symptom"
+                                                                value="0" required>
+                                                    </div>
+                                                </li>
+                                            </div>
+                                            <div id="q5">
+                                                <li class="list-group-item d-flex justify-content-between align-items-start">
+                                                    <span class="badge rounded-pill"
+                                                          style="background-color: #8fd19e">5</span>
+                                                    <div class="ms-2 me-auto" id="q5_sym_lst">
+                                                        <div class="fw-bold">你有以下哪种对应症状？</div>
+                                                        有发热症状<input type="checkbox" class="checkbox" id="symptom_list1"
+                                                                    name="symptom_list"
+                                                                    value="有发热症状*">
+                                                        有咳嗽症状<input type="checkbox" class="checkbox" id="symptom_list2"
+                                                                    name="symptom_list"
+                                                                    value="有咳嗽症状*">
+                                                        有结膜充血症状<input type="checkbox" class="checkbox"
+                                                                      id="symptom_list3" name="symptom_list"
+                                                                      value="有结膜充血症状*">
+                                                        其他<input type="checkbox" class="checkbox" id="symptom_list4"
+                                                                 name="symptom_list"
+                                                                 value="其他*">
+                                                    </div>
+                                                </li>
+                                            </div>
+                                            <div id="q6">
+                                                <li class="list-group-item d-flex justify-content-between align-items-start">
+                                                    <span class="badge rounded-pill"
+                                                          style="background-color: #8fd19e">6</span>
+                                                    <div class="ms-2 me-auto">
+                                                        <div class="fw-bold">你是否已就医？</div>
+                                                        是<input type="radio" class="radio" id="hospital1"
+                                                                name="hospital" value="1">
+                                                        否<input type="radio" class="radio" id="hospital0"
+                                                                name="hospital" value="0">
+                                                    </div>
+                                                </li>
+                                            </div>
+                                            <div id="q7">
+                                                <li class="list-group-item d-flex justify-content-between align-items-start">
+                                                    <span class="badge rounded-pill"
+                                                          style="background-color: #8fd19e">7</span>
+                                                    <div class="ms-2 me-auto">
+                                                        <div class="fw-bold">你的就诊医院名称和地址信息？</div>
+                                                        <input type="text" id="hospital_location"
+                                                               name="hospital_location">
+                                                    </div>
+                                                </li>
+                                            </div>
+                                            <div id="q8">
+                                                <li class="list-group-item d-flex justify-content-between align-items-start">
+                                                    <span class="badge rounded-pill"
+                                                          style="background-color: #8fd19e">8</span>
+                                                    <div class="ms-2 me-auto">
+                                                        <div class="fw-bold">你是否自行购买发热、咳嗽等感冒药品？</div>
+                                                        是<input type="radio" class="radio" id="medicine1"
+                                                                name="medicine" value="1">
+                                                        否<input type="radio" class="radio" id="medicine0"
+                                                                name="medicine" value="0">
+                                                    </div>
+                                                </li>
+                                            </div>
+                                            <div id="q9">
+                                                <li class="list-group-item d-flex justify-content-between align-items-start">
+                                                    <span class="badge rounded-pill"
+                                                          style="background-color: #8fd19e">9</span>
+                                                    <div class="ms-2 me-auto">
+                                                        <div class="fw-bold">购药地点及药物名称？</div>
+                                                        <input type="text" name="medicine_location"
+                                                               id="medicine_location">
+                                                    </div>
+                                                </li>
+                                            </div>
+                                            <div id="q10">
+                                                <li class="list-group-item d-flex justify-content-between align-items-start">
+                                                    <span class="badge rounded-pill" style="background-color: #8fd19e">10</span>
+                                                    <div class="ms-2 me-auto">
+                                                        <div class="fw-bold">你目前是否在{{ request.session.location }}？</div>
+                                                        是<input type="radio" class="radio" id="designate_location1"
+                                                                name="designate_location"
+                                                                value="1" required>
+                                                        否<input type="radio" class="radio" id="designate_location0"
+                                                                name="designate_location"
+                                                                value="0" required>
+                                                    </div>
+                                                </li>
+                                            </div>
+                                            <div id="q11">
+                                                <li class="list-group-item d-flex justify-content-between align-items-start">
+                                                    <span class="badge rounded-pill" style="background-color: #8fd19e">11</span>
+                                                    <div class="ms-2 me-auto">
+                                                        <div class="fw-bold">住房类型？</div>
+                                                        校外租房<input type="radio" class="radio" id="rent" name="live_type"
+                                                                   value="校外租房" required>
+                                                        自家房产<input type="radio" class="radio" id="own" name="live_type"
+                                                                   value="自家房产" required>
+                                                        校内住宿<input type="radio" class="radio" id="dorm" name="live_type"
+                                                                   value="校内住宿" required>
+                                                    </div>
+                                                </li>
+                                            </div>
+                                            <div id="q12">
+                                                <li class="list-group-item d-flex justify-content-between align-items-start">
+                                                    <span class="badge rounded-pill" style="background-color: #8fd19e">12</span>
+                                                    <div class="ms-2 me-auto">
+                                                        <div class="fw-bold">你的手机号码是？</div>
+                                                        <input type="tel" name="phone" id="phone" required>
+                                                    </div>
+                                                </li>
+                                            </div>
+                                            <li class="list-group-item btn-upload" style="text-align: center">
+                                                <button type="submit" class="btn"
+                                                        style="background-color: #8fd19e; -webkit-text-fill-color: white">
+                                                    打卡
+                                                </button>
+                                            </li>
+                                        </form>
+                                    </ol>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭
+                                    </button>
+                                    <button type="button" class="btn btn-success">修改</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer text-muted">
+                    填写时间：{% time_format record.create_time %}
+                </div>
+            </div>
+            <br/>
+        {% endfor %}
+        <div class="pagination row text-center">
+            <div class="m-auto">
+        <span class="step-links">
+            <!-- 如果不是第一页，则显示上翻按钮 -->
+            {% if records.has_previous %}
+                <a href="?page=1" class="btn btn-dark">
+                    &laquo; 1
+                </a>
+                <span>...</span>
+                <a href="?page={{ records.previous_page_number }}"
+                   class="btn btn-secondary"
+                >
+                    {{ records.previous_page_number }}
+                </a>
+            {% endif %}
+
+            <!-- 当前页面 -->
+            <span class="current btn btn-success btn-lg">
+                {{ records.number }}
+            </span>
+
+            <!-- 如果不是最末页，则显示下翻按钮 -->
+            {% if records.has_next %}
+                <a href="?page={{ records.next_page_number }}"
+                   class="btn btn-secondary"
+                >
+                    {{ records.next_page_number }}
+                </a>
+                <span>...</span>
+                <a href="?page={{ records.paginator.num_pages }}"
+                   class="btn btn-dark"
+                >
+                    {{ records.paginator.num_pages }} &raquo;
+                </a>
+            {% endif %}
+        </span>
+            </div>
+        </div>
+    </div>
+{% endblock content %}

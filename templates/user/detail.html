@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}
+    用户详情
+{% endblock title %}
+{% block content %}
+    <div class="container">
+        <div class="row">
+            <h1 class="col-12 mt-4 mb-4">
+                {{ user.user_name }}
+            </h1>
+{#            <a href="#" class="page-link" onclick="user_delete()">注销本账户</a>#}
+            {% if user.is_authenticated %}
+                <form
+                    style="display:none;"
+                    id="user_delete"
+                    action="{% url 'login:user_delete' user.user_uuid %}"
+                    method="POST"
+                >
+                    {% csrf_token %}
+                    <button type="submit">确认</button>
+                </form>
+                <script>
+                    function user_delete() {
+                        // 调用layer弹窗组件
+                        layer.open({
+                            title: "确认删除",
+                            content: "确认删除用户资料吗？",
+                            yes: function(index, layer) {
+                                $('form#user_delete button').click();
+                                layer.close(index);
+                            },
+                        })
+                    }
+                </script>
+            {% endif %}
+            <a href="{% url "login:user_update"%}" class="page-link">修改个人资料</a>
+            <div class="col-12 alert alert-success">
+                工号/学号：{% if user.user_bind_num is None or user.user_bind_num == '' %}暂未绑定{% else %}{{ user.user_bind_num }}{% endif %}
+            </div>
+            <div class="col-6">
+                手机：{% if user.phone is None %}暂未绑定{% else %}{{ user.phone }}{% endif %}
+            </div>
+            <div class="col-6">
+                邮箱：{{ user.email }}
+            </div>
+            <div class="col-6">
+                单位/学校：{{ user.user_org }}
+            </div>
+            <div class="col-6">
+                性别：{% if user.gender == 0 %}
+                    女
+                {% elif user.gender == 1 %}
+                    男
+                {% elif user.gender == 2 or user.gender is None %}
+                    不想透露
+                {% endif %}
+            </div>
+            {% if request.session.admin_level > 1 %}
+            <div class="col-6">
+                提醒打卡时间：{% if  request.session.strategy_time == '' %}暂未设置{% else %}{{ request.session.strategy_time }}{% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+{% endblock content %}

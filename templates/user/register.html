@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}
+    注册
+{% endblock %}
+{% block content %}
+
+        <style>
+        {#极验验证的样式#}
+        #embed-captcha {
+            width: 300px;
+            margin: 0 auto;
+
+        }
+
+        .show {
+            display: block;
+        }
+
+        .hide {
+            display: none;
+        }
+
+        #notice {
+            color: red;
+        }
+    </style>
+
+    <script src="{% static 'js/gt.js' %}"></script>
+
+    <script>
+        //极验验证码
+        var handlerEmbed = function (captchaObj) {
+            $("#embed-submit").click(function (e) {
+                var validate = captchaObj.getValidate();
+                if (!validate) {
+                    $("#notice")[0].className = "show";
+                    setTimeout(function () {
+                        $("#notice")[0].className = "hide";
+                    }, 2000);
+                    e.preventDefault();
+                }
+            });
+            // 将验证码加到id为captcha的元素里，同时会有三个input的值：geetest_challenge, geetest_validate, geetest_seccode
+            captchaObj.appendTo("#embed-captcha");
+            captchaObj.onReady(function () {
+                $("#wait")[0].className = "hide";
+            });
+        };
+        $.ajax({
+            // 获取id，challenge，success（是否启用failback）
+            url: "pc_get_captcha?t=" + (new Date()).getTime(), // 加随机数防止缓存
+            type: "get",
+            dataType: "json",
+            success: function (data) {
+                // 参数1：配置参数
+                // 参数2：回调，回调的第一个参数验证码对象
+                initGeetest({
+                    gt: data.gt,
+                    challenge: data.challenge,
+                    product: "embed",
+                    offline: !data.success // 表示用户后台检测极验服务器是否宕机
+                }, handlerEmbed);
+            }
+        });
+    </script>
+
+    <script>
+        //判断是否重复邮箱
+        function isHaveEmail() {
+            $.ajax({
+                url: '{% url 'login:is_have_email' %}',
+                type: 'POST',
+                data: {'email': $('#email').val()},
+                dataType: 'json',
+                success: function (msg) {
+                    json = eval(msg)
+                    if (json.result == "False") {
+                        $('#email').addClass('is-invalid')
+                    } else {
+                        $('#email').removeClass('is-invalid')
+                    }
+                }
+            })
+        }
+
+        function checkPWD() {
+            $.ajax({
+                url: '{% url 'login:check_pwd' %}',
+                type: 'POST',
+                data: {'pwd1': $('#password').val(), 'pwd2': $('#password2').val()},
+                dataType: 'json',
+                success: function (msg) {
+                    json = eval(msg)
+                    if (json.result == "False") {
+                        $('#password').addClass('is-invalid')
+                        $('#password2').addClass('is-invalid')
+                    } else {
+                        $('#password').removeClass('is-invalid')
+                        $('#password2').removeClass('is-invalid')
+                    }
+                }
+            })
+        }
+    </script>
+    <div class="container">
+        <div class="row card border-0" style="background: transparent">
+            <div class="col-4 card-body m-auto">
+                <br/>
+                <form method="post" action=".">
+                    {% csrf_token %}
+                    <div class="form-floating mb-3">
+                        <input type="text" class="form-control" id="user_name" name="user_name" placeholder="用户名"
+                               required>
+                        <label for="user_name">用户名</label>
+                    </div>
+                    <div class="form-floating mb-3">
+                        <input type="email" class="form-control" id="email" name="email" placeholder="name@example.com"
+                               aria-describedby="emailFeedback" required onkeyup="isHaveEmail()">
+                        <label for="email" id="email_label">邮箱</label>
+                        <div id="emailFeedback" class="invalid-feedback">
+                            该邮箱已被注册
+                        </div>
+                    </div>
+                    <div class="form-floating mb-3">
+                        <input type="password" class="form-control" id="password" name="password" placeholder="密码"
+                               required>
+                        <label for="password" id="password_label">密码</label>
+                    </div>
+                    <div class="form-floating mb-3">
+                        <input type="password" class="form-control" id="password2" name="password2" placeholder="确认密码"
+                               aria-describedby="pwdFeedback" required onkeyup="checkPWD()">
+                        <label for="password2" id="password2_label">确认密码</label>
+                        <div id="pwdFeedback" class="invalid-feedback">
+                            两次输入的密码不同
+                        </div>
+                    </div>
+                    {# 极验验证 #}
+                    <div id="embed-captcha"></div>
+                    <div style="text-align: center">
+                        <div class="spinner-border text-primary" id="wait" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                    <p id="notice" class="hide" style="text-align: center">请先验证验证码</p>
+                    <br/>
+                    <div style="text-align: center">
+                        <button type="submit" class="btn btn-success" id="embed-submit">注册</button>
+                    </div>
+                    <br/>
+                    <div class="alert alert-secondary text-center" role="alert">
+                        忘记密码？<a href="{% url 'password_reset_recover' %}" class="alert-link">点我重制密码</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+{% endblock content %}
+
